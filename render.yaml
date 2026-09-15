@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: springboot-api
+    runtime: docker
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: proddb
+          property: connectionString
+      - key: DATABASE_USERNAME
+        fromDatabase:
+          name: proddb
+          property: user
+      - key: DATABASE_PASSWORD
+        fromDatabase:
+          name: proddb
+          property: password
+
+databases:
+  - name: proddb
+    plan: free
