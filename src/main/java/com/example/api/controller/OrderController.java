@@ -4,6 +4,8 @@ import com.example.api.entity.Order;
 import com.example.api.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -77,6 +79,15 @@ public class OrderController {
     @PatchMapping("/{id}")
     public ResponseEntity<Order> partialUpdateOrder(
             @Parameter(description = "Order ID") @PathVariable Long id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Only include the fields you want to change",
+                    content = @Content(examples = {
+                            @ExampleObject(name = "Update status only",
+                                    value = "{\"status\": \"SHIPPED\"}"),
+                            @ExampleObject(name = "Update quantity and price",
+                                    value = "{\"quantity\": 3, \"totalPrice\": 4500}")
+                    })
+            )
             @RequestBody Map<String, Object> updates) {
         return ResponseEntity.ok(orderService.partialUpdateOrder(id, updates));
     }
