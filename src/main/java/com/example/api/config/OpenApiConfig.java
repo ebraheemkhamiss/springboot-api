@@ -20,7 +20,7 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("Products API")
                         .version("1.0.0")
-                        .description("API لإدارة وتخزين بيانات المنتجات في قاعدة البيانات")
+                        .description("A REST API for managing and storing product data in a database")
                         .contact(new Contact()
                                 .name("Support")
                                 .email("support@example.com")));

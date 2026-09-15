@@ -9,11 +9,12 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * طبقة الـ Service بتحتوي منطق العمل، وبتفصل الـ Controller عن التعامل المباشر
- * مع الـ Repository. ده بيخلي الكود أنظف وأسهل في الاختبار (testing).
+ * The service layer holds the business logic and separates the controller
+ * from direct interaction with the repository. This keeps the code cleaner
+ * and easier to test.
  */
 @Service
-@RequiredArgsConstructor // Lombok بيعمل constructor للـ final fields (dependency injection)
+@RequiredArgsConstructor // Lombok generates a constructor for the final fields (dependency injection)
 public class ProductService {
 
     private final ProductRepository productRepository;
@@ -24,7 +25,7 @@ public class ProductService {
 
     public Product getProductById(Long id) {
         return productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("المنتج برقم " + id + " غير موجود"));
+                .orElseThrow(() -> new ResourceNotFoundException("Product with id " + id + " was not found"));
     }
 
     public Product createProduct(Product product) {

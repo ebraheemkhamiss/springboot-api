@@ -10,12 +10,12 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * هذا الكلاس يمثل جدول "products" في قاعدة البيانات.
- * غيّر الحقول دي لأي بيانات محتاج تخزنها في مشروعك.
+ * This class represents the "products" table in the database.
+ * Change these fields to match whatever data your project needs to store.
  */
 @Entity
 @Table(name = "products")
-@Data // تولّد getters/setters/toString تلقائيًا (من Lombok)
+@Data // Generates getters/setters/toString automatically (via Lombok)
 @NoArgsConstructor
 @AllArgsConstructor
 public class Product {
@@ -24,13 +24,13 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "اسم المنتج مطلوب")
+    @NotBlank(message = "Product name is required")
     @Column(nullable = false)
     private String name;
 
     private String description;
 
-    @Positive(message = "السعر لازم يكون رقم موجب")
+    @Positive(message = "Price must be a positive number")
     @Column(nullable = false)
     private Double price;
 
