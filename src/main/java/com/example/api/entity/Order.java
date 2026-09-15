@@ -13,6 +13,15 @@ import java.time.LocalDateTime;
 
 /**
  * This class represents the "orders" table in the database.
+ *
+ * NOTE ON RELATIONSHIPS:
+ * - customer: @ManyToOne to Customer. This is unidirectional (Customer does
+ *   NOT hold a list of orders) to keep JSON serialization simple and avoid
+ *   circular references.
+ * - productName remains a plain string for now (no FK to Product yet).
+ *   Introducing a real Order -> OrderItem -> Product relationship is a
+ *   separate, larger change (needed to support multiple products per order
+ *   and to link into Inventory).
  */
 @Entity
 @Table(name = "orders")
@@ -25,10 +34,10 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "Customer name is required")
-    @Size(max = 150, message = "Customer name must not exceed 150 characters")
-    @Column(name = "customer_name", nullable = false)
-    private String customerName;
+    // العلاقة الحقيقية بالعميل - Many orders can belong to one Customer
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Customer customer;
 
     @NotBlank(message = "Product name is required")
     @Size(max = 150, message = "Product name must not exceed 150 characters")

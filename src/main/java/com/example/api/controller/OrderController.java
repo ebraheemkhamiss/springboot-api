@@ -1,5 +1,6 @@
 package com.example.api.controller;
 
+import com.example.api.dto.OrderRequest;
 import com.example.api.entity.Order;
 import com.example.api.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,25 +48,30 @@ public class OrderController {
     }
 
     // 1. إضافة order جديد
-    @Operation(summary = "Create a new order")
+    @Operation(summary = "Create a new order",
+            description = "The 'customerName' must match an EXISTING customer " +
+                    "(create the customer first via POST /api/customers). " +
+                    "If no matching customer is found, the request is rejected with 404.")
     @ApiResponse(responseCode = "201", description = "Order created successfully")
     @ApiResponse(responseCode = "400", description = "Invalid data")
+    @ApiResponse(responseCode = "404", description = "Customer not found")
     @PostMapping
-    public ResponseEntity<Order> createOrder(@Valid @RequestBody Order order) {
-        Order saved = orderService.createOrder(order);
+    public ResponseEntity<Order> createOrder(@Valid @RequestBody OrderRequest request) {
+        Order saved = orderService.createOrder(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
     // 2. تعديل order موجود بالكامل (PUT)
     @Operation(summary = "Fully update an existing order",
-            description = "Replaces ALL fields with the new values sent. Any field not included will be lost.")
+            description = "Replaces ALL fields with the new values sent. " +
+                    "'customerName' must match an existing customer.")
     @ApiResponse(responseCode = "200", description = "Updated successfully")
-    @ApiResponse(responseCode = "404", description = "Order not found")
+    @ApiResponse(responseCode = "404", description = "Order or customer not found")
     @PutMapping("/{id}")
     public ResponseEntity<Order> updateOrderFull(
             @Parameter(description = "Order ID") @PathVariable Long id,
-            @Valid @RequestBody Order order) {
-        return ResponseEntity.ok(orderService.updateOrderFull(id, order));
+            @Valid @RequestBody OrderRequest request) {
+        return ResponseEntity.ok(orderService.updateOrderFull(id, request));
     }
 
     // 3. تعديل جزئي (PATCH)
@@ -73,9 +79,10 @@ public class OrderController {
             description = "Updates only the fields included in the request body. " +
                     "Example: sending {\"status\": \"SHIPPED\"} updates only the status " +
                     "and leaves all other fields untouched. " +
-                    "Allowed status values: PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED.")
+                    "Allowed status values: PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED. " +
+                    "If 'customerName' is included, it must match an existing customer.")
     @ApiResponse(responseCode = "200", description = "Updated successfully")
-    @ApiResponse(responseCode = "404", description = "Order not found")
+    @ApiResponse(responseCode = "404", description = "Order or customer not found")
     @PatchMapping("/{id}")
     public ResponseEntity<Order> partialUpdateOrder(
             @Parameter(description = "Order ID") @PathVariable Long id,
@@ -84,6 +91,8 @@ public class OrderController {
                     content = @Content(examples = {
                             @ExampleObject(name = "Update status only",
                                     value = "{\"status\": \"SHIPPED\"}"),
+                            @ExampleObject(name = "Update customer",
+                                    value = "{\"customerName\": \"Ahmed Mohamed\"}"),
                             @ExampleObject(name = "Update quantity and price",
                                     value = "{\"quantity\": 3, \"totalPrice\": 4500}")
                     })
