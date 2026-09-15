@@ -3,7 +3,6 @@ package com.example.api.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -13,37 +12,44 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * This class represents the "products" table in the database.
- * Change these fields to match whatever data your project needs to store.
+ * This class represents the "orders" table in the database.
  */
 @Entity
-@Table(name = "products")
-@Data // Generates getters/setters/toString automatically (via Lombok)
+@Table(name = "orders")
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Product {
+public class Order {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Customer name is required")
+    @Size(max = 150, message = "Customer name must not exceed 150 characters")
+    @Column(name = "customer_name", nullable = false)
+    private String customerName;
+
     @NotBlank(message = "Product name is required")
     @Size(max = 150, message = "Product name must not exceed 150 characters")
-    @Column(nullable = false)
-    private String name;
-
-    @Size(max = 1000, message = "Description must not exceed 1000 characters")
-    private String description;
-
-    @NotNull(message = "Price is required")
-    @Positive(message = "Price must be a positive number")
-    @Column(nullable = false)
-    private Double price;
+    @Column(name = "product_name", nullable = false)
+    private String productName;
 
     @NotNull(message = "Quantity is required")
-    @PositiveOrZero(message = "Quantity cannot be negative")
+    @Positive(message = "Quantity must be a positive number")
     @Column(nullable = false)
-    private Integer quantity = 0;
+    private Integer quantity;
+
+    @NotNull(message = "Total price is required")
+    @Positive(message = "Total price must be a positive number")
+    @Column(name = "total_price", nullable = false)
+    private Double totalPrice;
+
+    // Only PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED are accepted
+    @NotNull(message = "Status is required")
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OrderStatus status = OrderStatus.PENDING;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

@@ -2,6 +2,7 @@ package com.example.api.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -39,6 +40,18 @@ public class GlobalExceptionHandler {
         body.put("status", HttpStatus.BAD_REQUEST.value());
         body.put("error", "Validation Failed");
         body.put("messages", errors);
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
+    // بيمسك أخطاء تحويل الـ JSON، زي إرسال قيمة status مش من ضمن القيم المسموحة
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleUnreadable(HttpMessageNotReadableException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("error", "Invalid Request Body");
+        body.put("message", "The request body contains an invalid value or format. " +
+                "For 'status', only PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED are accepted.");
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 
