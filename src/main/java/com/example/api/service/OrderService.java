@@ -3,6 +3,7 @@ package com.example.api.service;
 import com.example.api.entity.Order;
 import com.example.api.exception.ResourceNotFoundException;
 import com.example.api.repository.OrderRepository;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -53,8 +54,14 @@ public class OrderService {
      */
     public Order partialUpdateOrder(Long id, Map<String, Object> updates) {
         Order existing = getOrderById(id);
-        // Jackson بيدمج القيم الموجودة في الـ Map فوق الكائن الحالي، ويسيب أي حقل مش مذكور زي ما هو
-        objectMapper.updateValue(existing, updates);
+        try {
+            // Jackson بيدمج القيم الموجودة في الـ Map فوق الكائن الحالي، ويسيب أي حقل مش مذكور زي ما هو
+            objectMapper.updateValue(existing, updates);
+        } catch (JsonMappingException e) {
+            // بيحصل مثلاً لو حد بعت قيمة status مش من ضمن القيم المسموحة
+            throw new IllegalArgumentException(
+                    "Invalid value in request body: " + e.getOriginalMessage(), e);
+        }
         return orderRepository.save(existing);
     }
 
