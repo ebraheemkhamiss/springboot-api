@@ -29,7 +29,6 @@ public class OrderController {
 
     private final OrderService orderService;
 
-    // 5. عرض كل الـ orders
     @Operation(summary = "Get all orders")
     @ApiResponse(responseCode = "200", description = "Successfully retrieved")
     @GetMapping
@@ -37,7 +36,6 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getAllOrders());
     }
 
-    // 4. عرض order معين عن طريق id
     @Operation(summary = "Get a single order by ID")
     @ApiResponse(responseCode = "200", description = "Order found")
     @ApiResponse(responseCode = "404", description = "Order not found")
@@ -47,26 +45,27 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getOrderById(id));
     }
 
-    // 1. إضافة order جديد
     @Operation(summary = "Create a new order",
-            description = "The 'customerName' must match an EXISTING customer " +
-                    "(create the customer first via POST /api/customers). " +
-                    "If no matching customer is found, the request is rejected with 404.")
+            description = "'customerName' must match an EXISTING customer (create it first via POST /api/customers). " +
+                    "'productId' must match an existing product that has an inventory record. " +
+                    "The system automatically checks stock, deducts the ordered quantity from inventory, " +
+                    "and calculates totalPrice = product price * quantity. " +
+                    "If stock is insufficient, the request is rejected with 400 and nothing is changed.")
     @ApiResponse(responseCode = "201", description = "Order created successfully")
-    @ApiResponse(responseCode = "400", description = "Invalid data")
-    @ApiResponse(responseCode = "404", description = "Customer not found")
+    @ApiResponse(responseCode = "400", description = "Invalid data or insufficient stock")
+    @ApiResponse(responseCode = "404", description = "Customer, product, or inventory record not found")
     @PostMapping
     public ResponseEntity<Order> createOrder(@Valid @RequestBody OrderRequest request) {
         Order saved = orderService.createOrder(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
-    // 2. تعديل order موجود بالكامل (PUT)
     @Operation(summary = "Fully update an existing order",
-            description = "Replaces ALL fields with the new values sent. " +
-                    "'customerName' must match an existing customer.")
+            description = "Replaces ALL fields with the new values sent. Stock is automatically restored " +
+                    "for the old product/quantity before being deducted again for the new values.")
     @ApiResponse(responseCode = "200", description = "Updated successfully")
-    @ApiResponse(responseCode = "404", description = "Order or customer not found")
+    @ApiResponse(responseCode = "400", description = "Invalid data or insufficient stock")
+    @ApiResponse(responseCode = "404", description = "Order, customer, or product not found")
     @PutMapping("/{id}")
     public ResponseEntity<Order> updateOrderFull(
             @Parameter(description = "Order ID") @PathVariable Long id,
@@ -74,15 +73,14 @@ public class OrderController {
         return ResponseEntity.ok(orderService.updateOrderFull(id, request));
     }
 
-    // 3. تعديل جزئي (PATCH)
     @Operation(summary = "Partially update an order",
             description = "Updates only the fields included in the request body. " +
-                    "Example: sending {\"status\": \"SHIPPED\"} updates only the status " +
-                    "and leaves all other fields untouched. " +
-                    "Allowed status values: PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED. " +
-                    "If 'customerName' is included, it must match an existing customer.")
+                    "Supported fields: customerName, productId, quantity, status. " +
+                    "Changing productId or quantity automatically re-validates and adjusts inventory, " +
+                    "and recalculates totalPrice.")
     @ApiResponse(responseCode = "200", description = "Updated successfully")
-    @ApiResponse(responseCode = "404", description = "Order or customer not found")
+    @ApiResponse(responseCode = "400", description = "Invalid data or insufficient stock")
+    @ApiResponse(responseCode = "404", description = "Order, customer, or product not found")
     @PatchMapping("/{id}")
     public ResponseEntity<Order> partialUpdateOrder(
             @Parameter(description = "Order ID") @PathVariable Long id,
@@ -93,16 +91,16 @@ public class OrderController {
                                     value = "{\"status\": \"SHIPPED\"}"),
                             @ExampleObject(name = "Update customer",
                                     value = "{\"customerName\": \"Ahmed Mohamed\"}"),
-                            @ExampleObject(name = "Update quantity and price",
-                                    value = "{\"quantity\": 3, \"totalPrice\": 4500}")
+                            @ExampleObject(name = "Update quantity",
+                                    value = "{\"quantity\": 3}")
                     })
             )
             @RequestBody Map<String, Object> updates) {
         return ResponseEntity.ok(orderService.partialUpdateOrder(id, updates));
     }
 
-    // 6. حذف order
-    @Operation(summary = "Delete an order")
+    @Operation(summary = "Delete an order",
+            description = "Automatically restores the ordered quantity back to inventory before deleting.")
     @ApiResponse(responseCode = "204", description = "Deleted successfully")
     @ApiResponse(responseCode = "404", description = "Order not found")
     @DeleteMapping("/{id}")

@@ -54,6 +54,7 @@ public class CustomerController {
     @Operation(summary = "Create a new customer")
     @ApiResponse(responseCode = "201", description = "Customer created successfully")
     @ApiResponse(responseCode = "400", description = "Invalid data")
+    @ApiResponse(responseCode = "409", description = "A customer with this name or email already exists")
     @PostMapping
     public ResponseEntity<Customer> createCustomer(@Valid @RequestBody Customer customer) {
         Customer saved = customerService.createCustomer(customer);
@@ -63,6 +64,7 @@ public class CustomerController {
     @Operation(summary = "Update an existing customer")
     @ApiResponse(responseCode = "200", description = "Updated successfully")
     @ApiResponse(responseCode = "404", description = "Customer not found")
+    @ApiResponse(responseCode = "409", description = "The new name/email conflicts with another existing customer")
     @PutMapping("/{id}")
     public ResponseEntity<Customer> updateCustomer(
             @Parameter(description = "Customer ID") @PathVariable Long id,
@@ -70,9 +72,12 @@ public class CustomerController {
         return ResponseEntity.ok(customerService.updateCustomer(id, customer));
     }
 
-    @Operation(summary = "Delete a customer")
+    @Operation(summary = "Delete a customer",
+            description = "Rejected with 409 if the customer still has existing orders " +
+                    "(orders must be deleted or reassigned first).")
     @ApiResponse(responseCode = "204", description = "Deleted successfully")
     @ApiResponse(responseCode = "404", description = "Customer not found")
+    @ApiResponse(responseCode = "409", description = "Customer still has existing orders")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCustomer(
             @Parameter(description = "Customer ID") @PathVariable Long id) {

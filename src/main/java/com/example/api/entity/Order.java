@@ -1,10 +1,8 @@
 package com.example.api.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,16 +10,13 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * This class represents the "orders" table in the database.
+ * This class represents the "orders" table.
  *
- * NOTE ON RELATIONSHIPS:
- * - customer: @ManyToOne to Customer. This is unidirectional (Customer does
- *   NOT hold a list of orders) to keep JSON serialization simple and avoid
- *   circular references.
- * - productName remains a plain string for now (no FK to Product yet).
- *   Introducing a real Order -> OrderItem -> Product relationship is a
- *   separate, larger change (needed to support multiple products per order
- *   and to link into Inventory).
+ * - customer: real relationship to Customer (must exist beforehand).
+ * - product: real relationship to Product (must exist beforehand). Used to
+ *   look up price and the linked Inventory record for stock validation.
+ * - totalPrice: calculated automatically by the service as
+ *   product.price * quantity. It is NOT accepted directly from the client.
  */
 @Entity
 @Table(name = "orders")
@@ -34,23 +29,20 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // العلاقة الحقيقية بالعميل - Many orders can belong to one Customer
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
-    @NotBlank(message = "Product name is required")
-    @Size(max = 150, message = "Product name must not exceed 150 characters")
-    @Column(name = "product_name", nullable = false)
-    private String productName;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
 
     @NotNull(message = "Quantity is required")
     @Positive(message = "Quantity must be a positive number")
     @Column(nullable = false)
     private Integer quantity;
 
-    @NotNull(message = "Total price is required")
-    @Positive(message = "Total price must be a positive number")
+    // Calculated automatically (product.price * quantity), never sent by the client
     @Column(name = "total_price", nullable = false)
     private Double totalPrice;
 

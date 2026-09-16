@@ -1,5 +1,6 @@
 package com.example.api.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -64,6 +65,22 @@ public class GlobalExceptionHandler {
         body.put("error", "Invalid Request Body");
         body.put("message", ex.getMessage());
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
+    // بيمسك أخطاء قيود قاعدة البيانات، زي:
+    // - تكرار قيمة لازم تكون فريدة (unique) - مثلاً اسم عميل مكرر
+    // - محاولة حذف سجل لسه مرتبط بسجلات تانية (foreign key) - مثلاً عميل ليه orders
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("error", "Conflict");
+        body.put("message", "This operation could not be completed because it violates a database constraint. " +
+                "This usually means either: (1) a value that must be unique already exists (e.g. a customer " +
+                "with this name/email already exists), or (2) you're trying to delete a record that is still " +
+                "referenced by other data (e.g. a customer that has existing orders).");
+        return new ResponseEntity<>(body, HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(Exception.class)

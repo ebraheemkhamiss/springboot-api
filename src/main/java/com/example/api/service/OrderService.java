@@ -2,27 +2,36 @@ package com.example.api.service;
 
 import com.example.api.dto.OrderRequest;
 import com.example.api.entity.Customer;
+import com.example.api.entity.Inventory;
 import com.example.api.entity.Order;
+import com.example.api.entity.OrderStatus;
+import com.example.api.entity.Product;
 import com.example.api.exception.ResourceNotFoundException;
 import com.example.api.repository.CustomerRepository;
+import com.example.api.repository.InventoryRepository;
 import com.example.api.repository.OrderRepository;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.api.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * كل الميثودز هنا @Transactional: يعني لو أي خطوة فشلت في نص العملية
+ * (مثلاً الأوردر اتسجل بس خصم المخزون فشل)، Spring بيعمل rollback
+ * لكل حاجة تلقائيًا - العملية بتنجح كلها أو تفشل كلها، مفيش نص حل.
+ */
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class OrderService {
 
     private final OrderRepository orderRepository;
     private final CustomerRepository customerRepository;
-    // Spring Boot يوفر ObjectMapper جاهز تلقائيًا نستخدمه لدمج التعديلات الجزئية
-    private final ObjectMapper objectMapper;
+    private final ProductRepository productRepository;
+    private final InventoryRepository inventoryRepository;
 
     public List<Order> getAllOrders() {
         return orderRepository.findAll();
@@ -33,10 +42,6 @@ public class OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Order with id " + id + " was not found"));
     }
 
-    /**
-     * بيدوّر على العميل بالاسم بالظبط. لو مش موجود، بيرمي 404 - مفيش إنشاء
-     * تلقائي للعميل، الاسم لازم يكون موجود فعليًا في جدول customers.
-     */
     private Customer findCustomerByNameOrThrow(String customerName) {
         return customerRepository.findByNameIgnoreCase(customerName)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -44,17 +49,59 @@ public class OrderService {
                                 "Please create the customer first via POST /api/customers."));
     }
 
+    private Product findProductOrThrow(Long productId) {
+        return productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product with id " + productId + " was not found"));
+    }
+
+    private Inventory findInventoryOrThrow(Long productId) {
+        return inventoryRepository.findByProductId(productId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No inventory record found for product id " + productId +
+                                ". Please add inventory for this product first via POST /api/inventory."));
+    }
+
+    /**
+     * القلب الحقيقي للمنطق: بيتحقق من المخزون، يخصم منه، يحسب السعر تلقائيًا،
+     * ويربط الأوردر بالمنتج الصحيح. مستخدم في الإنشاء والتعديل الكامل والجزئي.
+     *
+     * لو الأوردر كان مرتبط بمنتج قبل كده (تعديل مش إنشاء)، بيرجّع الكمية
+     * القديمة للمخزون الأول قبل ما يخصم الكمية الجديدة من المنتج الجديد.
+     */
+    private void applyProductAndQuantity(Order order, Long newProductId, Integer newQuantity) {
+        // لو الأوردر كان له منتج وكمية قبل كده، رجّع الكمية دي للمخزون القديم الأول
+        if (order.getProduct() != null && order.getQuantity() != null) {
+            Inventory oldInventory = findInventoryOrThrow(order.getProduct().getId());
+            oldInventory.setQuantityAvailable(oldInventory.getQuantityAvailable() + order.getQuantity());
+            inventoryRepository.save(oldInventory);
+        }
+
+        Product product = findProductOrThrow(newProductId);
+        Inventory inventory = findInventoryOrThrow(product.getId());
+
+        if (inventory.getQuantityAvailable() < newQuantity) {
+            throw new IllegalArgumentException(
+                    "Insufficient stock for product '" + product.getName() + "'. " +
+                            "Available: " + inventory.getQuantityAvailable() + ", requested: " + newQuantity + ".");
+        }
+
+        inventory.setQuantityAvailable(inventory.getQuantityAvailable() - newQuantity);
+        inventoryRepository.save(inventory);
+
+        order.setProduct(product);
+        order.setQuantity(newQuantity);
+        order.setTotalPrice(product.getPrice() * newQuantity);
+    }
+
     public Order createOrder(OrderRequest request) {
         Customer customer = findCustomerByNameOrThrow(request.getCustomerName());
 
         Order order = new Order();
         order.setCustomer(customer);
-        order.setProductName(request.getProductName());
-        order.setQuantity(request.getQuantity());
-        order.setTotalPrice(request.getTotalPrice());
-        if (request.getStatus() != null) {
-            order.setStatus(request.getStatus());
-        }
+        order.setStatus(request.getStatus() != null ? request.getStatus() : OrderStatus.PENDING);
+
+        applyProductAndQuantity(order, request.getProductId(), request.getQuantity());
+
         return orderRepository.save(order);
     }
 
@@ -63,49 +110,64 @@ public class OrderService {
      */
     public Order updateOrderFull(Long id, OrderRequest request) {
         Order existing = getOrderById(id);
-        Customer customer = findCustomerByNameOrThrow(request.getCustomerName());
 
+        Customer customer = findCustomerByNameOrThrow(request.getCustomerName());
         existing.setCustomer(customer);
-        existing.setProductName(request.getProductName());
-        existing.setQuantity(request.getQuantity());
-        existing.setTotalPrice(request.getTotalPrice());
         existing.setStatus(request.getStatus() != null ? request.getStatus() : existing.getStatus());
+
+        applyProductAndQuantity(existing, request.getProductId(), request.getQuantity());
+
         return orderRepository.save(existing);
     }
 
     /**
-     * تعديل جزئي (PATCH) - بيحدّث بس الحقول اللي اتبعتت في الطلب.
-     * لو "customerName" ضمن الحقول المُرسلة، بيتحقق منه بنفس الشرط
-     * (لازم يكون عميل موجود فعلاً) قبل ما يربطه بالأوردر.
+     * تعديل جزئي (PATCH) - بيحدّث بس الحقول اللي اتبعتت.
+     * الحقول المدعومة: customerName, productId, quantity, status
      */
     public Order partialUpdateOrder(Long id, Map<String, Object> updates) {
         Order existing = getOrderById(id);
 
-        // customerName مش فيلد حقيقي في Order بقى (بقى customer كـ object)
-        // فلازم نتعامل معاه لوحده قبل ما نسيب Jackson يدمج الباقي تلقائيًا
-        Map<String, Object> remainingUpdates = new HashMap<>(updates);
-        Object customerNameValue = remainingUpdates.remove("customerName");
-        if (customerNameValue != null) {
-            Customer customer = findCustomerByNameOrThrow(customerNameValue.toString());
+        if (updates.containsKey("customerName")) {
+            Customer customer = findCustomerByNameOrThrow(String.valueOf(updates.get("customerName")));
             existing.setCustomer(customer);
         }
 
-        if (!remainingUpdates.isEmpty()) {
+        if (updates.containsKey("status")) {
             try {
-                // Jackson بيدمج القيم الموجودة في الـ Map فوق الكائن الحالي
-                objectMapper.updateValue(existing, remainingUpdates);
-            } catch (JsonMappingException e) {
-                // بيحصل مثلاً لو حد بعت قيمة status مش من ضمن القيم المسموحة
+                OrderStatus newStatus = OrderStatus.valueOf(String.valueOf(updates.get("status")).toUpperCase());
+                existing.setStatus(newStatus);
+            } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(
-                        "Invalid value in request body: " + e.getOriginalMessage(), e);
+                        "Invalid status value. Allowed values: PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED.");
             }
+        }
+
+        boolean productOrQuantityChanged = updates.containsKey("productId") || updates.containsKey("quantity");
+        if (productOrQuantityChanged) {
+            Long newProductId = updates.containsKey("productId")
+                    ? Long.valueOf(String.valueOf(updates.get("productId")))
+                    : existing.getProduct().getId();
+            Integer newQuantity = updates.containsKey("quantity")
+                    ? Integer.valueOf(String.valueOf(updates.get("quantity")))
+                    : existing.getQuantity();
+
+            applyProductAndQuantity(existing, newProductId, newQuantity);
         }
 
         return orderRepository.save(existing);
     }
 
+    /**
+     * حذف الأوردر - بيرجّع الكمية بتاعته للمخزون تلقائيًا قبل الحذف
+     * (سلوك منطقي: إلغاء الأوردر لازم يفرّج عن المخزون اللي كان محجوز ليه).
+     */
     public void deleteOrder(Long id) {
         Order existing = getOrderById(id);
+
+        Inventory inventory = findInventoryOrThrow(existing.getProduct().getId());
+        inventory.setQuantityAvailable(inventory.getQuantityAvailable() + existing.getQuantity());
+        inventoryRepository.save(inventory);
+
         orderRepository.delete(existing);
     }
 }

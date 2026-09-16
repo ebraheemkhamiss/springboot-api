@@ -3,7 +3,6 @@ package com.example.api.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -14,11 +13,14 @@ import java.time.LocalDateTime;
 
 /**
  * This class represents the "products" table in the database.
- * Change these fields to match whatever data your project needs to store.
+ *
+ * NOTE: stock quantity is intentionally NOT stored here. Available quantity
+ * lives exclusively in the Inventory table (Product 1:1 Inventory) to avoid
+ * having the same information duplicated/out-of-sync in two places.
  */
 @Entity
 @Table(name = "products")
-@Data // Generates getters/setters/toString automatically (via Lombok)
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class Product {
@@ -39,11 +41,6 @@ public class Product {
     @Positive(message = "Price must be a positive number")
     @Column(nullable = false)
     private Double price;
-
-    @NotNull(message = "Quantity is required")
-    @PositiveOrZero(message = "Quantity cannot be negative")
-    @Column(nullable = false)
-    private Integer quantity = 0;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

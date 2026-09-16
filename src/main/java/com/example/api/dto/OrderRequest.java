@@ -8,8 +8,9 @@ import lombok.Data;
 
 /**
  * الشكل اللي المستخدم بيبعته فعليًا عند إنشاء/تعديل أوردر.
- * بيستقبل "customerName" كنص بسيط، والـ Service هو المسؤول عن البحث
- * عن الـ Customer المطابق في قاعدة البيانات وربطه بالأوردر.
+ *
+ * ملحوظة: مفيش totalPrice هنا خالص - الـ Service هو اللي بيحسبه تلقائيًا
+ * من (سعر المنتج × الكمية)، ومينفعش يتبعت من العميل.
  */
 @Data
 public class OrderRequest {
@@ -17,16 +18,12 @@ public class OrderRequest {
     @NotBlank(message = "Customer name is required")
     private String customerName;
 
-    @NotBlank(message = "Product name is required")
-    private String productName;
+    @NotNull(message = "Product id is required")
+    private Long productId;
 
     @NotNull(message = "Quantity is required")
     @Positive(message = "Quantity must be a positive number")
     private Integer quantity;
-
-    @NotNull(message = "Total price is required")
-    @Positive(message = "Total price must be a positive number")
-    private Double totalPrice;
 
     // اختياري عند الإنشاء - لو مبعتوش هيتحدد PENDING تلقائيًا
     private OrderStatus status;

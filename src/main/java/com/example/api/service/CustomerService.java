@@ -7,11 +7,13 @@ import com.example.api.repository.CustomerRepository;
 import com.example.api.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
