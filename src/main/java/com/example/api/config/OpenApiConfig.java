@@ -20,9 +20,10 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("Products API")
                         .version("1.0.0")
-                        .description("A REST API for managing and storing product data in a database")
+                        .description("A REST API for managing and storing product data in a database"
+                                + "\n\nPowered and developed by: Ibrahim khamiss — +201014778296")
                         .contact(new Contact()
-                                .name("Support")
+                                .name("Ibrahim khamiss")
                                 .email("support@example.com")));
     }
 }

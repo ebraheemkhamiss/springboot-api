@@ -1,5 +1,7 @@
 # Spring Boot REST API - مثال تخزين منتجات
 
+**Powered and developed by: Ibrahim khamiss — +201014778296**
+
 مشروع كامل بيستقبل بيانات عبر REST API ويخزنها في قاعدة بيانات (H2 مبدئيًا، وتقدر تبدلها بـ MySQL بسهولة).
 
 ## المتطلبات

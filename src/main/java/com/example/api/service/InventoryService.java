@@ -3,6 +3,7 @@ package com.example.api.service;
 import com.example.api.dto.InventoryRequest;
 import com.example.api.entity.Inventory;
 import com.example.api.entity.Product;
+import com.example.api.exception.DuplicateResourceException;
 import com.example.api.exception.ResourceNotFoundException;
 import com.example.api.repository.InventoryRepository;
 import com.example.api.repository.ProductRepository;
@@ -42,8 +43,9 @@ public class InventoryService {
 
         // العلاقة 1:1 - مينفعش يكون فيه أكتر من سجل مخزون لنفس المنتج
         if (inventoryRepository.existsByProductId(request.getProductId())) {
-            throw new IllegalArgumentException(
-                    "Inventory record already exists for product id " + request.getProductId());
+            throw new DuplicateResourceException(
+                    "Inventory record already exists for product id " + request.getProductId() +
+                            ". Use PUT /api/inventory/{id} to update the existing record instead.");
         }
 
         Inventory inventory = new Inventory();

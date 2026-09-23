@@ -54,8 +54,9 @@ public class InventoryController {
     @Operation(summary = "Create an inventory record for a product",
             description = "Each product can have only ONE inventory record (one-to-one relationship).")
     @ApiResponse(responseCode = "201", description = "Inventory record created successfully")
-    @ApiResponse(responseCode = "400", description = "Invalid data or inventory already exists for this product")
+    @ApiResponse(responseCode = "400", description = "Invalid data")
     @ApiResponse(responseCode = "404", description = "Product not found")
+    @ApiResponse(responseCode = "409", description = "An inventory record already exists for this product")
     @PostMapping
     public ResponseEntity<Inventory> createInventory(@Valid @RequestBody InventoryRequest request) {
         Inventory saved = inventoryService.createInventory(request);
